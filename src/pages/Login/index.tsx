@@ -2,19 +2,44 @@ import React from 'react';
 import styled from 'styled-components';
 import Container from '../../components/Container';
 import Box from '../../components/Box';
+import { gql } from '@apollo/client';
+import { useLoginLazyQuery, useLoginQuery } from '../../generated/graphql';
 
+gql`
+  query login($email: String!, $password: String!) {
+    login(email: $email, password: $password)
+  }
+`
 
 const Login: React.FC = () => {
+  const [email, setEmail] = React.useState<string>();
+  const [password, setPassword] = React.useState<string>();
+  const [loginQuery] = useLoginLazyQuery()
+
+  const handleClickLogin = () => {
+    if (!email || !password) {
+      alert('이메일과 비밀번호를 입력해주세요.')
+      return
+    }
+
+    loginQuery({
+      variables: {
+        email,
+        password
+      }
+    })
+  }
+ 
   return (
     <Container>
       <LoginBox>
         <Logo src='https://elice.io/images/elice_logo.svg' />
         <InputBox>
-          <Input placeholder="이메일" style={{ borderTopLeftRadius: 8, borderTopRightRadius: 8 }} />
+          <Input value={email} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)} placeholder="이메일" style={{ borderTopLeftRadius: 8, borderTopRightRadius: 8 }} />
           <InputDivider />
-          <Input placeholder="비밀번호" style={{ borderBottomLeftRadius: 8, borderBottomRightRadius: 8 }} />
+          <Input value={password} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)} placeholder="비밀번호" style={{ borderBottomLeftRadius: 8, borderBottomRightRadius: 8 }} />
         </InputBox>
-        <LoginButton>로그인</LoginButton>
+        <LoginButton onClick={handleClickLogin}>로그인</LoginButton>
       </LoginBox>
     </Container>
   )
