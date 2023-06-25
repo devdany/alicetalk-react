@@ -5,16 +5,145 @@ import Box from '../../components/Box';
 import ChatProfile from '../../components/ChatProfile';
 import UserIcon from '../../icons/user.svg';
 import MessageItem from './MessageItem';
+import { gql } from '@apollo/client';
+import { useChatQuery, useSendMessageMutation } from '../../generated/graphql';
+import { useParams } from 'react-router-dom';
+import { isSameDate } from '../../utils/dateFormatter';
+
+gql`
+  query chat($chatId: ID!) {
+    chat(id: $chatId) {
+      id
+      members {
+        id
+        email
+      }
+      messages {
+        id
+        sender {
+          id
+          email
+        }
+        body
+        createdAt
+      }
+    }
+  }
+`
+
+gql`
+  mutation sendMessage($chatId: ID!, $body: String!) {
+    sendMessage(chatId: $chatId, body: $body) {
+      id
+      sender {
+        id
+        email
+      }
+      body
+      createdAt
+    }
+  }
+`
+
 
 const Chat: React.FC = () => {
   const messagesRef = React.useRef<HTMLDivElement>(null);
+  const params = useParams<{ chatId: string }>();
+  const [body, setBody] = React.useState<string>();
+  const { data, loading, error } = useChatQuery({
+    variables: {
+      chatId: params.chatId ? params.chatId : '',
+    },
+    skip: !params.chatId
+  })
+  
+  const [sendMessage, sendMessageResult] = useSendMessageMutation({
+    update(cache, { data }) {
+      if (!data?.sendMessage || !params.chatId) {
+        return;
+      }
+
+      cache.modify({
+        id: `Chat:${params.chatId}`,
+        fields: {
+          messages(existingMessages = []) {
+            const newMessageRef = cache.writeFragment({
+              data: data.sendMessage,
+              fragment: gql`
+                fragment NewMessage on Message {
+                  id
+                  sender {
+                    id
+                    email
+                  }
+                  body
+                  createdAt
+                }
+              `
+            })
+
+            return [...existingMessages, newMessageRef];
+          }
+        }
+      })
+    },
+    onCompleted() {
+      setBody('');
+      setTimeout(() => {
+        messagesRef.current?.scrollTo({
+          top: messagesRef.current.scrollHeight,
+        })
+      }, 100)
+    },
+  });
 
   React.useEffect(() => {
     if (messagesRef.current) {
       messagesRef.current.scrollTop = messagesRef.current.scrollHeight;
     }
   }, []);
-  
+
+  const membersAsChatTitle = React.useMemo(() => {
+    if (!data?.chat) {
+      return '';
+    }
+
+    return data.chat.members.map(member => member.email.split('@')[0]).join(', ');
+  }, [data])
+
+  const handleClickSubmit = () => {
+    if (sendMessageResult.loading) {
+      return;
+    }
+
+    if (!body) {
+      return;
+    }
+
+    sendMessage({
+      variables: {
+        chatId: params.chatId ? params.chatId : '',
+        body,
+      }
+    })
+  }
+
+  if (loading) {
+    return (
+      <Container>
+        로딩중..
+      </Container>
+    )
+  }
+
+  if (!data?.chat || error) {
+    return (
+      <Container>
+        채팅정보를 로드하는데 실패했습니다.
+      </Container>
+    )
+  }
+
   return (
     <Container>
       <ChatBox>
@@ -22,45 +151,48 @@ const Chat: React.FC = () => {
           <ChatHeaderLeft>
             <ChatProfile />
             <ChatHeaderContentBox>
-              <Title>dany, heidi, rookie...</Title>
+              <Title>{membersAsChatTitle}...</Title>
               <UserCountBox>
                 <UserIconImg src={UserIcon} />
-                <UserCount>2</UserCount>
+                <UserCount>{data.chat.members.length}</UserCount>
               </UserCountBox>
             </ChatHeaderContentBox>
           </ChatHeaderLeft>
         </ChatHeader>
         <Divider />
         <MessagesBox ref={messagesRef}>
-          <MessageItem senderId='heidi' body='hello' relay={false} createdAt={new Date('2023-06-22')} />
-          <MessageItem senderId='me' body='hello hello' relay={false} createdAt={new Date('2023-06-22')} />
-          <MessageItem senderId='heidi' body='wow' relay={false} createdAt={new Date('2023-06-22')} relayStart />
-          <MessageItem senderId='heidi' body='hello' relay={true} createdAt={new Date('2023-06-22')} />
-          <MessageItem senderId='heidi' body='hello' relay={true} createdAt={new Date('2023-06-22')} />
-          <MessageItem senderId='heidi' body='hello' relay={true} createdAt={new Date('2023-06-22')} relayLast />
-          <MessageItem senderId='me' body='haha' relay={true} createdAt={new Date('2023-06-22')} relayLast />
-          <MessageItem senderId='me' body='haha' relay={false} createdAt={new Date('2023-06-22')} relayLast />
-          <MessageItem senderId='heidi' body='hello' relay={false} createdAt={new Date('2023-06-22')} />
-          <MessageItem senderId='me' body='hello hello' relay={false} createdAt={new Date('2023-06-22')} />
-          <MessageItem senderId='heidi' body='wow' relay={false} createdAt={new Date('2023-06-22')} relayStart />
-          <MessageItem senderId='heidi' body='hello' relay={true} createdAt={new Date('2023-06-22')} />
-          <MessageItem senderId='heidi' body='hello' relay={true} createdAt={new Date('2023-06-22')} />
-          <MessageItem senderId='heidi' body='hello' relay={true} createdAt={new Date('2023-06-22')} relayLast />
-          <MessageItem senderId='me' body='haha' relay={true} createdAt={new Date('2023-06-22')} relayLast />
-          <MessageItem senderId='me' body='haha' relay={false} createdAt={new Date('2023-06-22')} relayLast />
-          <MessageItem senderId='heidi' body='hello' relay={false} createdAt={new Date('2023-06-22')} />
-          <MessageItem senderId='me' body='hello hello' relay={false} createdAt={new Date('2023-06-22')} />
-          <MessageItem senderId='heidi' body='wow' relay={false} createdAt={new Date('2023-06-22')} relayStart />
-          <MessageItem senderId='heidi' body='hello' relay={true} createdAt={new Date('2023-06-22')} />
-          <MessageItem senderId='heidi' body='hello' relay={true} createdAt={new Date('2023-06-22')} />
-          <MessageItem senderId='heidi' body='hello' relay={true} createdAt={new Date('2023-06-22')} relayLast />
-          <MessageItem senderId='me' body='haha' relay={true} createdAt={new Date('2023-06-22')} relayLast />
-          <MessageItem senderId='me' body='haha' relay={false} createdAt={new Date('2023-06-22')} relayLast />
+          {data.chat.messages.map((message, index) => {
+            if (!data.chat) {
+              return null
+            }
+            // relay 로직
+            /*
+              현재 메세지와 다음 메시지의 전송자가 같고, 이전 매시지와 전송자가 다르면 relayStart
+              이전 메세지의 전송자와 현재 메시지의 전송자가 같고 relay
+              현재 메세지와 다음 메시지의 전송자가 같고, 전송시간도 같으면 relayTime
+            */
+            const beforeMessage = data.chat.messages[index - 1];
+            const nextMessage = data.chat.messages[index + 1];
+            const isRelay = beforeMessage?.sender?.id === message.sender?.id;
+            const isRelayStart =  beforeMessage?.sender?.id !== message.sender?.id && nextMessage?.sender?.id === message.sender?.id;
+            const sameCreatedAtToNextMessage = nextMessage?.createdAt && isSameDate(new Date(nextMessage.createdAt), new Date(message.createdAt)) && nextMessage.sender?.id === message.sender?.id;
+            return (
+              <MessageItem
+                key={message.id}
+                senderId={message.sender?.id}
+                body={message.body}
+                createdAt={new Date(message.createdAt)}
+                relay={isRelay}
+                relayStart={isRelayStart}
+                relayTime={sameCreatedAtToNextMessage}
+              />
+            )
+          })}
         </MessagesBox>
         <Divider />
         <SendMessageBox>
-          <TextArea />
-          <SendButton>전송</SendButton>
+          <TextArea value={body} onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setBody(e.target.value)} />
+          <SendButton onClick={handleClickSubmit} disabled={!body}>전송</SendButton>
         </SendMessageBox>
       </ChatBox>
     </Container>
@@ -164,11 +296,18 @@ const TextArea = styled.textarea`
   color: #ffffff;
 `
 
-const SendButton = styled.button`
+const SendButton = styled.button<{ disabled: boolean }>`
   flex: 0 0 80px;
   height: 72px;
-  background-color: rgb(45, 45, 45);
-  color: rgb(91, 91, 91);
   border-radius: 8px;
-  border: 1px solid rgb(64, 64, 64);
+  ${props => props.disabled ? `
+    background-color: rgb(45, 45, 45);
+    color: rgb(91, 91, 91);
+    border: 1px solid rgb(64, 64, 64);
+  ` : `
+    background-color: rgb(251, 230, 77);
+    color: #000000;
+    border: none;
+  `}
+  
 `

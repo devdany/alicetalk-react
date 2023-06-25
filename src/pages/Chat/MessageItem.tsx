@@ -1,18 +1,29 @@
 import React from 'react';
 import styled from 'styled-components'
 import ChatProfile from '../../components/ChatProfile';
+import { useMeQuery } from '../../generated/graphql';
+import { useLoggedIn } from '../../hooks/loggedIn';
+import { dateFormatter } from '../../utils/dateFormatter';
 
 type MessageItemProps = {
   body: string;
   createdAt: Date;
   relayStart?: boolean;
   relay: boolean;
-  relayLast?: boolean;
-  senderId: string;
+  senderId?: string;
+  relayTime: boolean;
 }
 
-const MessageItem: React.FC<MessageItemProps> = ({ body, createdAt, relay, senderId, relayLast, relayStart }) => {
-  if (!relay && senderId !== 'me') {
+const MessageItem: React.FC<MessageItemProps> = ({ body, createdAt, relay, senderId, relayStart, relayTime }) => {
+  const loggedIn = useLoggedIn();
+  const { data } = useMeQuery({
+    skip: !loggedIn
+  });
+
+  if (!data?.me) {
+    return null;
+  }
+  if (!relay && senderId !== data.me.id) {
     return (
       <OtherUserMessageItemBox>
         <ChatProfile />
@@ -22,9 +33,9 @@ const MessageItem: React.FC<MessageItemProps> = ({ body, createdAt, relay, sende
             <OtherUserMessageBox>
               {body}
             </OtherUserMessageBox>
-            {!relayStart && (
+            {!relayTime && (
               <CreatedAtBox>
-                오후 7:30
+                {dateFormatter(createdAt)}
               </CreatedAtBox>
             )}
             
@@ -33,7 +44,7 @@ const MessageItem: React.FC<MessageItemProps> = ({ body, createdAt, relay, sende
         </OtherUserMessageItemContentBox>
       </OtherUserMessageItemBox>
     )
-  }  else if (relay && senderId !== 'me') {
+  }  else if (relay && senderId !== data.me.id) {
     return (
       <OtherUserMessageItemBox>
         <OtherUserMessageItemContentBox style={{ marginLeft: 62 }}>
@@ -41,23 +52,24 @@ const MessageItem: React.FC<MessageItemProps> = ({ body, createdAt, relay, sende
             <OtherUserMessageBox>
               {body}
             </OtherUserMessageBox>
-            {relayLast && (
+            {!relayTime && (
               <CreatedAtBox>
-                오후 7:30
-              </CreatedAtBox>
+              {dateFormatter(createdAt)}
+            </CreatedAtBox>
             )}
+            
             
           </OtherUserMessageContentBox>
           
         </OtherUserMessageItemContentBox>
       </OtherUserMessageItemBox>
     )
-  } else if (senderId === 'me') {
+  } else if (senderId === data.me.id) {
     return (
       <MyMessageItemBox>
         <MyMessageContentBox>
-          {!relay && (
-            <CreatedAtBox>오후 7:33</CreatedAtBox>
+          {!relayTime && (
+            <CreatedAtBox>{dateFormatter(createdAt)}</CreatedAtBox>
           )}
           
           <MyMessageBox>{body}</MyMessageBox>
@@ -65,11 +77,7 @@ const MessageItem: React.FC<MessageItemProps> = ({ body, createdAt, relay, sende
       </MyMessageItemBox>
     )
   }
-  return (
-    <MessageItemBox>
-      MessageItem
-    </MessageItemBox>
-  )
+  return null
 }
 
 export default MessageItem;

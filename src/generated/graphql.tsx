@@ -153,6 +153,21 @@ export type User = {
   id: Scalars['ID']['output'];
 };
 
+export type ChatQueryVariables = Exact<{
+  chatId: Scalars['ID']['input'];
+}>;
+
+
+export type ChatQuery = { __typename?: 'Query', chat?: { __typename?: 'Chat', id: string, members: Array<{ __typename?: 'User', id: string, email: string }>, messages: Array<{ __typename?: 'Message', id: string, body: string, createdAt: any, sender?: { __typename?: 'User', id: string, email: string } | null }> } | null };
+
+export type SendMessageMutationVariables = Exact<{
+  chatId: Scalars['ID']['input'];
+  body: Scalars['String']['input'];
+}>;
+
+
+export type SendMessageMutation = { __typename?: 'Mutation', sendMessage?: { __typename?: 'Message', id: string, body: string, createdAt: any, sender?: { __typename?: 'User', id: string, email: string } | null } | null };
+
 export type ChatItemQueryVariables = Exact<{
   chatId: Scalars['ID']['input'];
 }>;
@@ -172,6 +187,8 @@ export type MeQueryVariables = Exact<{ [key: string]: never; }>;
 
 export type MeQuery = { __typename?: 'Query', me?: { __typename?: 'User', id: string, email: string, chats: Array<{ __typename?: 'Chat', id: string }> } | null };
 
+export type NewChatFragment = { __typename?: 'Chat', id: string };
+
 export type LoginQueryVariables = Exact<{
   email: Scalars['String']['input'];
   password: Scalars['String']['input'];
@@ -180,7 +197,99 @@ export type LoginQueryVariables = Exact<{
 
 export type LoginQuery = { __typename?: 'Query', login?: string | null };
 
+export const NewChatFragmentDoc = gql`
+    fragment NewChat on Chat {
+  id
+}
+    `;
+export const ChatDocument = gql`
+    query chat($chatId: ID!) {
+  chat(id: $chatId) {
+    id
+    members {
+      id
+      email
+    }
+    messages {
+      id
+      sender {
+        id
+        email
+      }
+      body
+      createdAt
+    }
+  }
+}
+    `;
 
+/**
+ * __useChatQuery__
+ *
+ * To run a query within a React component, call `useChatQuery` and pass it any options that fit your needs.
+ * When your component renders, `useChatQuery` returns an object from Apollo Client that contains loading, error, and data properties
+ * you can use to render your UI.
+ *
+ * @param baseOptions options that will be passed into the query, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options;
+ *
+ * @example
+ * const { data, loading, error } = useChatQuery({
+ *   variables: {
+ *      chatId: // value for 'chatId'
+ *   },
+ * });
+ */
+export function useChatQuery(baseOptions: Apollo.QueryHookOptions<ChatQuery, ChatQueryVariables>) {
+        const options = {...defaultOptions, ...baseOptions}
+        return Apollo.useQuery<ChatQuery, ChatQueryVariables>(ChatDocument, options);
+      }
+export function useChatLazyQuery(baseOptions?: Apollo.LazyQueryHookOptions<ChatQuery, ChatQueryVariables>) {
+          const options = {...defaultOptions, ...baseOptions}
+          return Apollo.useLazyQuery<ChatQuery, ChatQueryVariables>(ChatDocument, options);
+        }
+export type ChatQueryHookResult = ReturnType<typeof useChatQuery>;
+export type ChatLazyQueryHookResult = ReturnType<typeof useChatLazyQuery>;
+export type ChatQueryResult = Apollo.QueryResult<ChatQuery, ChatQueryVariables>;
+export const SendMessageDocument = gql`
+    mutation sendMessage($chatId: ID!, $body: String!) {
+  sendMessage(chatId: $chatId, body: $body) {
+    id
+    sender {
+      id
+      email
+    }
+    body
+    createdAt
+  }
+}
+    `;
+export type SendMessageMutationFn = Apollo.MutationFunction<SendMessageMutation, SendMessageMutationVariables>;
+
+/**
+ * __useSendMessageMutation__
+ *
+ * To run a mutation, you first call `useSendMessageMutation` within a React component and pass it any options that fit your needs.
+ * When your component renders, `useSendMessageMutation` returns a tuple that includes:
+ * - A mutate function that you can call at any time to execute the mutation
+ * - An object with fields that represent the current status of the mutation's execution
+ *
+ * @param baseOptions options that will be passed into the mutation, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options-2;
+ *
+ * @example
+ * const [sendMessageMutation, { data, loading, error }] = useSendMessageMutation({
+ *   variables: {
+ *      chatId: // value for 'chatId'
+ *      body: // value for 'body'
+ *   },
+ * });
+ */
+export function useSendMessageMutation(baseOptions?: Apollo.MutationHookOptions<SendMessageMutation, SendMessageMutationVariables>) {
+        const options = {...defaultOptions, ...baseOptions}
+        return Apollo.useMutation<SendMessageMutation, SendMessageMutationVariables>(SendMessageDocument, options);
+      }
+export type SendMessageMutationHookResult = ReturnType<typeof useSendMessageMutation>;
+export type SendMessageMutationResult = Apollo.MutationResult<SendMessageMutation>;
+export type SendMessageMutationOptions = Apollo.BaseMutationOptions<SendMessageMutation, SendMessageMutationVariables>;
 export const ChatItemDocument = gql`
     query chatItem($chatId: ID!) {
   chat(id: $chatId) {
