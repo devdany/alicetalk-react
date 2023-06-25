@@ -3,7 +3,9 @@ import styled from 'styled-components';
 import Container from '../../components/Container';
 import Box from '../../components/Box';
 import { gql } from '@apollo/client';
-import { useLoginLazyQuery, useLoginQuery } from '../../generated/graphql';
+import { useLoginLazyQuery } from '../../generated/graphql';
+import { setAccessToken } from '../../utils/accessTokenManager';
+import { accessTokenVar } from '../../apollo/cache';
 
 gql`
   query login($email: String!, $password: String!) {
@@ -14,7 +16,15 @@ gql`
 const Login: React.FC = () => {
   const [email, setEmail] = React.useState<string>();
   const [password, setPassword] = React.useState<string>();
-  const [loginQuery] = useLoginLazyQuery()
+  const [loginQuery] = useLoginLazyQuery({
+    onCompleted: (data) => {
+      const accessToken = data.login;
+      if (accessToken) {
+        setAccessToken(accessToken);
+        accessTokenVar(accessToken);
+      }
+    }
+  })
 
   const handleClickLogin = () => {
     if (!email || !password) {
@@ -37,7 +47,7 @@ const Login: React.FC = () => {
         <InputBox>
           <Input value={email} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)} placeholder="이메일" style={{ borderTopLeftRadius: 8, borderTopRightRadius: 8 }} />
           <InputDivider />
-          <Input value={password} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)} placeholder="비밀번호" style={{ borderBottomLeftRadius: 8, borderBottomRightRadius: 8 }} />
+          <Input type='password' value={password} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)} placeholder="비밀번호" style={{ borderBottomLeftRadius: 8, borderBottomRightRadius: 8 }} />
         </InputBox>
         <LoginButton onClick={handleClickLogin}>로그인</LoginButton>
       </LoginBox>

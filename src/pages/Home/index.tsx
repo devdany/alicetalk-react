@@ -3,26 +3,104 @@ import styled from 'styled-components';
 import Container from '../../components/Container';
 import Box from '../../components/Box';
 import ChatItem from './ChatItem';
+import { useLoggedIn } from '../../hooks/loggedIn';
+import Login from '../Login';
+import { gql } from '@apollo/client';
+import { useCreateChatMutation, useMeQuery } from '../../generated/graphql';
+
+gql`
+  mutation createChat($memberIds: [ID!]) {
+    createChat(memberIds: $memberIds) {
+      id
+    }
+  }
+`
+
+gql`
+  query me {
+    me {
+      id
+      email
+      chats {
+        id
+      }
+    }
+  }
+`
 
 const Home: React.FC = () => {
+  const loggedIn = useLoggedIn();
+  const meQuery = useMeQuery({
+    skip: !loggedIn
+  });
+  const [createChat] = useCreateChatMutation({
+    update(cache, { data }) {
+      if (!data?.createChat || !meQuery.data?.me) {
+        return;
+      }
+
+      cache.modify({
+        id: `User:${meQuery.data.me.id}`,
+        fields: {
+          chats(existingChats = []) {
+            const newChatRef = cache.writeFragment({
+              data: data.createChat,
+              fragment: gql`
+                fragment NewChat on Chat {
+                  id
+                }
+              `
+            });
+
+            return [...existingChats, newChatRef];
+          }
+        }
+      })
+    }
+  });
+  
+
+  const handleClickCreateChat = () => {
+    if (!meQuery.data?.me) {
+      return;
+    }
+
+    createChat({
+      variables: {
+        memberIds: ['1', '2', '3'].filter(id => id !== meQuery.data?.me?.id)
+      }
+    })
+  }
+
+  const chats = React.useMemo(() => {
+    if (meQuery.loading) {
+      return <p>로딩중...</p>
+    }
+
+    if (!meQuery.data?.me || meQuery.error) {
+      return <p>에러 발생</p>
+    }
+
+    if (meQuery.data.me.chats.length === 0) {
+      return <p>채팅이 없습니다.</p>
+    }
+
+    return meQuery.data.me.chats.map(chat => <ChatItem key={`chat-${chat.id}`} chatId={chat.id} />)
+  }, [meQuery])
+
+  if (!loggedIn) {
+    return <Login />
+  }
+
   return (
     <Container>
       <HomeBox>
         <Header>
           <p>채팅</p>
-          <AddButton>+</AddButton>
+          <AddButton onClick={handleClickCreateChat} >+</AddButton>
         </Header>
         <ChatsBox>
-          <ChatItem chatId="1" />
-          <ChatItem chatId="2" />
-          <ChatItem chatId="3" />
-          <ChatItem chatId="4" />
-          <ChatItem chatId="5" />
-          <ChatItem chatId="6" />
-          <ChatItem chatId="7" />
-          <ChatItem chatId="8" />
-          <ChatItem chatId="9" />
-          <ChatItem chatId="10" />
+          {chats}
         </ChatsBox>
       </HomeBox>
     </Container>
